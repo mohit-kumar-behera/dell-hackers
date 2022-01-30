@@ -70,6 +70,21 @@ async def update_customer(customer_id: str, request: Request, response: Response
   return response_obj
 
 
+""" GET PARTICULAR CUSTOMER """
+@app.get('/api/customer/{customer_id}', status_code = status.HTTP_200_OK)
+async def get_all_customer(customer_id: str, response: Response):
+  try:
+    customer_found = customer.find_one({"_id": ObjectId(customer_id)})
+    customer_found__id = str(customer_found['_id'])
+    customer_found['_id'] = customer_found__id
+  except:
+    response_obj = create_response_obj(False, 404, 'Something went wrong')
+    response.status_code = status.HTTP_404_NOT_FOUND
+  else:
+    response_obj = create_response_obj(True, 200, customer_found)
+  return response_obj
+
+
 """ CREATE A PRODUCT """
 @app.post('/api/product', status_code = status.HTTP_201_CREATED)
 async def create_product(request: Request, response: Response):
