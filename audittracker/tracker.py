@@ -2,6 +2,7 @@ from fastavro import writer, reader, parse_schema
 import os, datetime, ast, urllib
 import pandas as pd
 import pyrebase
+import sweetviz as sv
 
 class Tracker:
   VALUE_CREATED = '@inserted'
@@ -15,7 +16,7 @@ class Tracker:
   TO_KEY_NAME = '+to'
   INSERTED_KEY_NAME = '+inserted_data'
   DELETED_KEY_NAME = '-data_was'
-  pk_name  = 'id'
+  pk_name = 'id'
  
   def __init__(self, BASE_DIR, audit_filename, table_pk_name):
     self.BASE_DIR = BASE_DIR
@@ -311,19 +312,21 @@ class Tracker:
     return records
   
   
-  def audit_by_id(self, id, sd = None, sm = None, sy = None, ed = None, em = None, ey = None):
+  def audit_by_id(self, id, sd = None, sm = None, sy = None, ed = None, em = None, ey = None, endpoints = False):
     dates = [sd, sm, sy, ed, em, ey]
 
     record_field = f'{self.audit_filename}-id-{id}'
     records = {record_field: []}
-    data_audits = self.__fetch_audit_as_json(old_snap = False)
+    data_audits = self.__fetch_audit_as_json(old_snap = endpoints)
 
     if None not in dates:
       filtered_records = self.__filter_by_date_range(data_audits, sd, sm, sy, ed, em, ey)
       data_audits[f'{self.audit_filename}_audit'] = filtered_records
 
     filtered_records = list(filter(lambda audit: audit[self.pk_name] == id, data_audits[f'{self.audit_filename}_audit']))
-    records[record_field].extend(filtered_records)
+    delta_of_filtered_records = filtered_records if not endpoints else self.__calc_endpoints_delta(filtered_records)
+
+    records[record_field].extend(delta_of_filtered_records)
     return records
   
 
@@ -354,3 +357,26 @@ class Tracker:
 
     list(map(lambda audit: fetch_operation_obj(audit, records[record_field]), data_audits[f'{self.audit_filename}_audit']))
     return records
+  
+
+  def fetch_analysis(self):
+    self.__download_from_cloud(self.AUDIT_FILE_PATH)
+    
+    avro_records = []
+    with open(self.AUDIT_FILE_PATH, 'rb') as file:
+      avro_reader = reader(file)
+      for record in avro_reader:
+          avro_records.append(record)
+    
+    df_avro = pd.DataFrame(avro_records)
+    df_avro.drop(['timestamp'], axis = 1, inplace = True)
+    my_report = sv.analyze(df_avro)
+
+    HTML_PATH = os.path.join(self.BASE_DIR, 'report.html')
+    my_report.show_html(filepath = HTML_PATH, open_browser = False)
+
+    with open(HTML_PATH, 'r', encoding = 'utf_8') as file:
+      html_content = file.read()
+
+    self.__remove_from_local(self.AUDIT_FILE_PATH)
+    return html_content

@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Request, Response, status
+from fastapi.responses import HTMLResponse
 from pymongo import ReturnDocument
 from bson.objectid import ObjectId
 
@@ -157,25 +158,25 @@ async def fetch_audit_by_dates(table_name: str, type: str, response: Response, s
     response.status_code = status.HTTP_404_NOT_FOUND
     return response_obj
   
-  dates = [sd, sm, sy]
+  query_params = [sd, sm, sy]
   if type == 'of':
     exec_func = tracker.audit_of_date
   elif type == 'from':
     exec_func = tracker.audit_from_date
   elif type == 'between':
-    dates.extend([ed, em, ey, endpoints])
+    query_params.extend([ed, em, ey, endpoints])
     exec_func = tracker.audit_between_date
   else:
     response_obj = create_response_obj(False, 404, f"No functions defined for type '{type}'.")
     response.status_code = status.HTTP_404_NOT_FOUND
     return response_obj
 
-  if None in dates:
+  if None in query_params:
     response_obj = create_response_obj(False, 404, 'Please provide with date, month and year in parameters')
     response.status_code = status.HTTP_404_NOT_FOUND
     return response_obj
 
-  table_audit = exec_func(*dates)
+  table_audit = exec_func(*query_params)
   response_obj = create_response_obj(True, 200, table_audit)
   return response_obj
 
@@ -183,7 +184,7 @@ async def fetch_audit_by_dates(table_name: str, type: str, response: Response, s
 
 """ FETCH AUDIT RECORD OF TABLE FILTERED BY ID FIELD OR OPERATIONS FIELD """
 @app.get('/api/audit/{table_name}/{type}/{value}', status_code = status.HTTP_200_OK)
-async def fetch_audit_by_id_or_operation(table_name: str, type: str, value: str, response: Response, sd: int = None, sm: int = None, sy: int = None, ed: int = None, em: int = None, ey: int = None):
+async def fetch_audit_by_id_or_operation(table_name: str, type: str, value: str, response: Response, sd: int = None, sm: int = None, sy: int = None, ed: int = None, em: int = None, ey: int = None, endpoints: bool = False):
   can_continue, tracker, message = check_table_tracker_existence(table_name, MODEL_TRACKER_MAPPER)
 
   if not can_continue:
@@ -191,9 +192,11 @@ async def fetch_audit_by_id_or_operation(table_name: str, type: str, value: str,
     response.status_code = status.HTTP_404_NOT_FOUND
     return response_obj
 
+  query_params = [value, sd, sm, sy, ed, em, ey]
   table_audit = None
   if type == 'id':
     exec_func = tracker.audit_by_id
+    query_params.append(endpoints)
   elif type == 'operation':
     exec_func = tracker.audit_by_operation
   else:
@@ -201,7 +204,22 @@ async def fetch_audit_by_id_or_operation(table_name: str, type: str, value: str,
     response.status_code = status.HTTP_404_NOT_FOUND
     return response_obj
   
-  table_audit = exec_func(value, sd, sm, sy, ed, em, ey)
+  table_audit = exec_func(*query_params)
   table_audit = table_audit or 'No data found, Please check if you have enetered a valid operation.'
   response_obj = create_response_obj(True, 200, table_audit)
   return response_obj
+
+
+
+""" FETCH ANALYSIS REPORT """
+@app.get('/api/audit/analysis/{table_name}', status_code = status.HTTP_200_OK, response_class = HTMLResponse)
+async def fetch_analysis_report_for_table(table_name: str, response: Response):
+  can_continue, tracker, message = check_table_tracker_existence(table_name, MODEL_TRACKER_MAPPER)
+
+  if not can_continue:
+    response_obj = create_response_obj(False, 404, message)
+    response.status_code = status.HTTP_404_NOT_FOUND
+    return response_obj
+  
+  html_content = tracker.fetch_analysis()
+  return HTMLResponse(content = html_content, status_code = 200)
