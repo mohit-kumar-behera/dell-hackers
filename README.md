@@ -3,7 +3,7 @@
 ## Installation
 
 ```bash
-pip install package_name
+pip install auditTracker
 ```
 
 ## Documentation
@@ -11,7 +11,7 @@ pip install package_name
 ### Import out Package
 
 ```python
-from package_name.tracker import Tracker
+from auditTracker import Tracker
 ```
 
 **This package is used to track changes made in a file, currently, we only support JSON file format but in the future, we will make it work for more file formats.**
