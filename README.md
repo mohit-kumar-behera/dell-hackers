@@ -57,7 +57,7 @@ Now you are ready to track your files as per your need, now to track any changes
 trackObj.track(oldObj, newObj)
 ```
 
-**oldObj:** a JSON object containing the information of the previous state of the record that has undergone a change.
+**oldObj:** a JSON object cotaining the information of the previous state of the record that has undergone a change.
 
 **newObj:** a JSON object containing the information of the current state of the record that has undergone a change.
 
